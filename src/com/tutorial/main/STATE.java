@@ -13,5 +13,7 @@ public enum STATE {
     Game,
     Help,
     End,
-    Menu
+    Menu,
+    Shop,
+    Select
 }

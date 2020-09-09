@@ -5,10 +5,9 @@
  */
 package com.tutorial.main;
 
-import java.awt.Canvas;
-import java.awt.Color;
-import java.awt.Graphics;
+import java.awt.*;
 import java.awt.image.BufferStrategy;
+import java.awt.image.BufferedImage;
 import java.util.Random;
 
 /**
@@ -19,28 +18,46 @@ public class Game extends Canvas implements Runnable {
 
     private static final long serialVersionUID = 2L;
     
-    public static final int WIDTH = 640, HEIGHT = WIDTH / 12*9;
+    public static final int WIDTH = 940, HEIGHT = WIDTH / 12*9;
     
     private Thread thread;
     private boolean running = false;
-    
+
+    public static boolean paused = false;
+    public int diff = 0;
+
+    //normal 0
+    //hard 1
+
     private Random r;
     private Handler handler;
     private HUD hud;
-    private Spawn spawner;
+    public Spawn spawner;
     public static STATE gameState = STATE.Menu;
    private Menu menu;
+   public static BufferedImage spriteSheet;
+   private Shop shop;
    
     
     public Game(){
+
+        BufferedImageLoader loader = new BufferedImageLoader();
+        spriteSheet = loader.loadImage("/spriteSheet.png");
         hud = new HUD();
         handler = new Handler();
+        shop = new Shop(handler,hud);
         menu = new Menu(this, handler, hud);
         this.addKeyListener(new KeyInput(handler));
        this.addMouseListener(menu);
+        this.addMouseListener(shop);
+
+        AudioPlayer.load();
+
+
         new Window(WIDTH, HEIGHT, "BoxHunt", this);
-        
-        spawner = new Spawn(handler, hud);
+
+
+        spawner = new Spawn(handler, hud, this);
         
         
         r = new Random();
@@ -109,26 +126,38 @@ public class Game extends Canvas implements Runnable {
     }
     
     private void tick(){
-        handler.tick();
+
         
         if(gameState == STATE.Game){
-             
-            hud.tick();
-             spawner.tick();
-            
-             if(HUD.HEALTH <= 0){
-                 HUD.HEALTH = 100;
-                 
-                  gameState = STATE.End;
-                 handler.clearAll();
-                   for(int i = 0; i < 15; i++){
-                handler.addObject(new MenuPartical(r.nextInt(WIDTH), r.nextInt(HEIGHT), ID.MenuPartical, handler));
-            }
-                
+             if(!paused){
+
+                 hud.tick();
+                 spawner.tick();
+                 handler.tick();
+
+                 if(HUD.HEALTH <= 0){
+
+                     HUD.HEALTH = 100;
+                     HUD.maxhealth  = HUD.HEALTH;
+
+                     gameState = STATE.End;
+                     handler.clearAll();
+
+                     AudioPlayer.getMusic("coffin").loop();
+                     for(int i = 0; i < 15; i++){
+                         handler.addObject(new MenuPartical(r.nextInt(WIDTH), r.nextInt(HEIGHT), ID.MenuPartical, handler));
+                     }
+
+                 }
              }
+
+            
+
              
-        } else if(gameState == STATE.Menu || gameState == STATE.End){
+        } else if(gameState == STATE.Menu || gameState == STATE.End || gameState == STATE.Select || gameState == STATE.Help){
+            handler.tick();
             menu.tick();
+
         }
         
             
@@ -151,12 +180,21 @@ public class Game extends Canvas implements Runnable {
         g.setColor(Color.LIGHT_GRAY);
         g.fillRect(0, 0, WIDTH, HEIGHT);
         
-        handler.render(g);
-       
+
+       if(paused){
+           g.setColor(Color.RED);
+
+           g.drawString("PAUSED", 105, 75);
+       }
         if(gameState == STATE.Game){
-               hud.render(g); 
-        } else if(gameState == STATE.Menu || gameState == STATE.Help ||gameState == STATE.End){
+               hud.render(g);
+            handler.render(g);
+        }else if(gameState == STATE.Shop){
+            shop.render(g);
+
+        }else if(gameState == STATE.Menu || gameState == STATE.Help ||gameState == STATE.End || gameState == STATE.Select){
             menu.render(g);
+            handler.render(g);
         } 
        
         g.dispose();
